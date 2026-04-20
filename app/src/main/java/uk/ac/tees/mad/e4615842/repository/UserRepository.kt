@@ -1,7 +1,6 @@
 package uk.ac.tees.mad.e4615842.repository
 
 import com.google.firebase.auth.FirebaseAuth
-import uk.ac.tees.mad.e4615842.api.ApiService
 
 class UserRepository {
     private val auth: FirebaseAuth = FirebaseAuth.getInstance()
