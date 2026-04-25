@@ -2,9 +2,9 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("com.google.gms.google-services")
+    kotlin("kapt")
 }
 
-// ✅ MOVE IT HERE (TOP LEVEL)
 val hiveApiKey: String = project.findProperty("HIVE_API_KEY") as String? ?: ""
 
 android {
@@ -18,7 +18,6 @@ android {
         versionCode = 1
         versionName = "1.0"
 
-        // ✅ NOW THIS WORKS
         buildConfigField("String", "HIVE_API_KEY", "\"$hiveApiKey\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -48,7 +47,7 @@ android {
 
     buildFeatures {
         compose = true
-        buildConfig = true // ✅ keep this here (merge both buildFeatures)
+        buildConfig = true
     }
 
     composeOptions {
@@ -72,7 +71,6 @@ dependencies {
     implementation("com.squareup.retrofit2:converter-gson:2.9.0")
 
     implementation(platform("androidx.compose:compose-bom:2023.08.00"))
-
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.ui:ui-tooling-preview")
@@ -81,6 +79,11 @@ dependencies {
     implementation("com.google.firebase:firebase-auth-ktx:22.3.0")
     implementation("androidx.compose.material:material-icons-extended")
     implementation("io.coil-kt:coil-compose:2.4.0")
+
+    // Room
+    implementation("androidx.room:room-runtime:2.6.1")
+    implementation("androidx.room:room-ktx:2.6.1")
+    kapt("androidx.room:room-compiler:2.6.1")
 
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")

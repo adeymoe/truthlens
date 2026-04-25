@@ -24,13 +24,15 @@ import coil.compose.rememberAsyncImagePainter
 import kotlinx.coroutines.launch
 import uk.ac.tees.mad.e4615842.BuildConfig
 import uk.ac.tees.mad.e4615842.api.RetrofitInstance
+import uk.ac.tees.mad.e4615842.data.ScanEntity
+import uk.ac.tees.mad.e4615842.data.ScanRepository
 import uk.ac.tees.mad.e4615842.model.HiveRequest
 import uk.ac.tees.mad.e4615842.utils.uriToBase64
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
 
-// Sealed class to represent the three possible UI states for the result
+// Sealed class to represent all possible UI states for the detection result
 sealed class DetectionResult {
     object Idle : DetectionResult()
     object Loading : DetectionResult()
@@ -40,7 +42,8 @@ sealed class DetectionResult {
 
 @Composable
 fun HomeScreen(
-    onImageSelected: (Uri?) -> Unit,
+    scanRepository: ScanRepository,
+    onViewHistory: () -> Unit,
     onLogout: () -> Unit
 ) {
     val context = LocalContext.current
@@ -49,7 +52,7 @@ fun HomeScreen(
     var imageUri by remember { mutableStateOf<Uri?>(null) }
     var detectionResult by remember { mutableStateOf<DetectionResult>(DetectionResult.Idle) }
 
-    // Create a fresh temp file for every camera capture
+    // Create a fresh temp file for each camera session
     var photoFile by remember {
         mutableStateOf(
             File(
@@ -76,7 +79,6 @@ fun HomeScreen(
         if (success) {
             imageUri = cameraUri
             detectionResult = DetectionResult.Idle
-            onImageSelected(cameraUri)
         }
     }
 
@@ -87,7 +89,6 @@ fun HomeScreen(
         if (uri != null) {
             imageUri = uri
             detectionResult = DetectionResult.Idle
-            onImageSelected(uri)
         }
     }
 
@@ -99,38 +100,44 @@ fun HomeScreen(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
 
-        // ── Header ──────────────────────────────────────────────
+        // ── Header Row ────────────────────────────────────────────
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = "TruthLens",
-                fontSize = 24.sp,
-                fontWeight = FontWeight.Bold
-            )
-            TextButton(onClick = onLogout) {
-                Text("Logout", color = MaterialTheme.colorScheme.error)
+            Column {
+                Text(
+                    text = "TruthLens",
+                    fontSize = 26.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = "AI Image Detector",
+                    fontSize = 13.sp,
+                    color = Color.Gray
+                )
+            }
+
+            Row {
+                TextButton(onClick = onViewHistory) {
+                    Text("History")
+                }
+                TextButton(onClick = onLogout) {
+                    Text("Logout", color = MaterialTheme.colorScheme.error)
+                }
             }
         }
 
-        Text(
-            text = "Detect AI-generated images instantly",
-            fontSize = 14.sp,
-            color = Color.Gray,
-            modifier = Modifier.fillMaxWidth()
-        )
+        Spacer(modifier = Modifier.height(20.dp))
 
-        Spacer(modifier = Modifier.height(24.dp))
-
-        // ── Image Preview ────────────────────────────────────────
+        // ── Image Preview Card ────────────────────────────────────
         Card(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(260.dp),
             shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFFF3F3F3))
+            colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F5F5))
         ) {
             Box(
                 modifier = Modifier.fillMaxSize(),
@@ -146,26 +153,36 @@ fun HomeScreen(
                         contentScale = ContentScale.Crop
                     )
                 } else {
-                    Text(
-                        text = "📷\nNo image selected",
-                        color = Color.Gray,
-                        textAlign = TextAlign.Center,
-                        fontSize = 16.sp
-                    )
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("📷", fontSize = 40.sp)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "No image selected",
+                            color = Color.Gray,
+                            textAlign = TextAlign.Center,
+                            fontSize = 15.sp
+                        )
+                        Text(
+                            text = "Use the buttons below to get started",
+                            color = Color.LightGray,
+                            textAlign = TextAlign.Center,
+                            fontSize = 12.sp
+                        )
+                    }
                 }
             }
         }
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // ── Action Buttons ───────────────────────────────────────
+        // ── Camera / Gallery Buttons ──────────────────────────────
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Button(
                 onClick = {
-                    // Create a fresh file each time so the URI is valid
+                    // Always create a fresh file to avoid stale URI issues on repeat captures
                     photoFile = File(
                         context.cacheDir,
                         "IMG_${SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())}.jpg"
@@ -180,7 +197,7 @@ fun HomeScreen(
                 modifier = Modifier.weight(1f),
                 shape = RoundedCornerShape(12.dp)
             ) {
-                Text("📸 Camera")
+                Text("📸  Camera")
             }
 
             Button(
@@ -188,16 +205,15 @@ fun HomeScreen(
                 modifier = Modifier.weight(1f),
                 shape = RoundedCornerShape(12.dp)
             ) {
-                Text("🖼️ Gallery")
+                Text("🖼️  Gallery")
             }
         }
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // ── Analyse Button ───────────────────────────────────────
+        // ── Analyse Button ────────────────────────────────────────
         Button(
             onClick = {
-                // Validate: no image selected
                 if (imageUri == null) {
                     detectionResult = DetectionResult.Error("Please select or capture an image first.")
                     return@Button
@@ -210,7 +226,7 @@ fun HomeScreen(
                         val base64 = uriToBase64(context, imageUri!!)
 
                         if (base64 == null) {
-                            detectionResult = DetectionResult.Error("Could not read image. Please try again.")
+                            detectionResult = DetectionResult.Error("Could not read the image. Please try a different one.")
                             return@launch
                         }
 
@@ -223,32 +239,44 @@ fun HomeScreen(
                             val classes = response.body()?.output?.firstOrNull()?.classes
 
                             if (classes.isNullOrEmpty()) {
-                                detectionResult = DetectionResult.Error("No results returned from API.")
+                                detectionResult = DetectionResult.Error("No results returned. Please try again.")
                                 return@launch
                             }
 
-                            // Pick the class with the highest confidence score
                             val best = classes.maxByOrNull { it.score }
 
                             if (best == null) {
-                                detectionResult = DetectionResult.Error("Could not interpret API response.")
+                                detectionResult = DetectionResult.Error("Could not interpret the API response.")
                                 return@launch
                             }
 
-                            val isAi = best.className.lowercase().contains("ai") ||
-                                    best.className.lowercase().contains("fake") ||
-                                    best.className.lowercase() == "ai_generated"
+                            // Normalise class name — Hive may return "ai_generated", "fake", etc.
+                            val nameNorm = best.className.lowercase().replace("_", "").replace("-", "")
+                            val isAi = nameNorm.contains("ai") ||
+                                    nameNorm.contains("fake") ||
+                                    nameNorm.contains("generated")
 
                             val label = if (isAi) "⚠️ AI Generated" else "✅ Likely Real"
                             val confidence = (best.score * 100).toInt()
 
-                            detectionResult = DetectionResult.Success(label, confidence, isAi)
+                            val result = DetectionResult.Success(label, confidence, isAi)
+                            detectionResult = result
+
+                            // ── Persist result to Room DB ─────────────────────────
+                            scanRepository.insertScan(
+                                ScanEntity(
+                                    imageUri  = imageUri.toString(),
+                                    label     = label,
+                                    confidence = confidence,
+                                    isAi      = isAi
+                                )
+                            )
 
                         } else {
                             detectionResult = when (response.code()) {
-                                401 -> DetectionResult.Error("Unauthorised — check your API key.")
-                                429 -> DetectionResult.Error("Too many requests. Please wait and try again.")
-                                500 -> DetectionResult.Error("API server error. Try again later.")
+                                401  -> DetectionResult.Error("Unauthorised — check your API key.")
+                                429  -> DetectionResult.Error("Too many requests. Please wait and try again.")
+                                500  -> DetectionResult.Error("Server error. Please try again later.")
                                 else -> DetectionResult.Error("API Error: ${response.code()}")
                             }
                         }
@@ -264,28 +292,29 @@ fun HomeScreen(
             },
             modifier = Modifier
                 .fillMaxWidth()
-                .height(50.dp),
+                .height(52.dp),
             shape = RoundedCornerShape(12.dp),
             enabled = detectionResult !is DetectionResult.Loading
         ) {
-            Text("🔍 Analyse Image", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+            Text("🔍  Analyse Image", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
         }
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // ── Result Area ──────────────────────────────────────────
+        // ── Result Area ───────────────────────────────────────────
         when (val result = detectionResult) {
 
             is DetectionResult.Loading -> {
                 CircularProgressIndicator()
                 Spacer(modifier = Modifier.height(8.dp))
-                Text("Analysing image...", color = Color.Gray)
+                Text("Analysing image...", color = Color.Gray, fontSize = 14.sp)
             }
 
             is DetectionResult.Success -> {
-                val cardColor = if (result.isAi) Color(0xFFFFEBEE) else Color(0xFFE8F5E9)
-                val textColor = if (result.isAi) Color(0xFFB71C1C) else Color(0xFF1B5E20)
+                val cardColor   = if (result.isAi) Color(0xFFFFEBEE) else Color(0xFFE8F5E9)
+                val textColor   = if (result.isAi) Color(0xFFB71C1C) else Color(0xFF1B5E20)
                 val borderColor = if (result.isAi) Color(0xFFEF9A9A) else Color(0xFFA5D6A7)
+                val barColor    = if (result.isAi) Color(0xFFE53935) else Color(0xFF43A047)
 
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -305,21 +334,27 @@ fun HomeScreen(
                             fontWeight = FontWeight.Bold,
                             color = textColor
                         )
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(6.dp))
                         Text(
                             text = "Confidence: ${result.confidence}%",
                             fontSize = 16.sp,
                             color = textColor
                         )
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(14.dp))
                         LinearProgressIndicator(
                             progress = result.confidence / 100f,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(8.dp)
                                 .clip(RoundedCornerShape(4.dp)),
-                            color = if (result.isAi) Color(0xFFE53935) else Color(0xFF43A047),
+                            color = barColor,
                             trackColor = Color.White
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text = "Result saved to history",
+                            fontSize = 12.sp,
+                            color = textColor.copy(alpha = 0.65f)
                         )
                     }
                 }
@@ -336,7 +371,7 @@ fun HomeScreen(
                         modifier = Modifier.padding(16.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("⚠️", fontSize = 20.sp)
+                        Text("⚠️", fontSize = 22.sp)
                         Spacer(modifier = Modifier.width(12.dp))
                         Text(
                             text = result.message,
@@ -348,7 +383,7 @@ fun HomeScreen(
             }
 
             is DetectionResult.Idle -> {
-                // Nothing shown until the user acts
+                // Nothing shown until the user interacts
             }
         }
 
