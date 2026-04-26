@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -5,7 +7,12 @@ plugins {
     kotlin("kapt")
 }
 
-val hiveApiKey: String = project.findProperty("HIVE_API_KEY") as String? ?: ""
+// ✅ Correctly reads HIVE_API_KEY from local.properties
+val localProperties = Properties().apply {
+    val localFile = rootProject.file("local.properties")
+    if (localFile.exists()) load(localFile.inputStream())
+}
+val hiveApiKey: String = localProperties.getProperty("HIVE_API_KEY") ?: ""
 
 android {
     namespace = "uk.ac.tees.mad.e4615842"

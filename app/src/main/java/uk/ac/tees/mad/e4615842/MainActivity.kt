@@ -13,6 +13,7 @@ import uk.ac.tees.mad.e4615842.repository.UserRepository
 import uk.ac.tees.mad.e4615842.ui.history.HistoryScreen
 import uk.ac.tees.mad.e4615842.ui.home.HomeScreen
 import uk.ac.tees.mad.e4615842.ui.login.LoginScreen
+import uk.ac.tees.mad.e4615842.ui.profile.ProfileScreen
 import uk.ac.tees.mad.e4615842.ui.register.RegisterScreen
 import uk.ac.tees.mad.e4615842.ui.splash.SplashScreen
 import uk.ac.tees.mad.e4615842.ui.theme.TruthLensTheme
@@ -20,8 +21,6 @@ import uk.ac.tees.mad.e4615842.ui.theme.TruthLensTheme
 class MainActivity : ComponentActivity() {
 
     private val userRepository = UserRepository()
-
-    // Room DB — initialised once, singleton via companion object
     private lateinit var scanRepository: ScanRepository
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -45,7 +44,7 @@ fun AppHost(
     userRepository: UserRepository,
     scanRepository: ScanRepository
 ) {
-    // Navigation states: splash → login → register → home → history
+    // Screens: splash → login → register → home → history → profile
     var currentScreen by remember { mutableStateOf("splash") }
 
     when (currentScreen) {
@@ -75,9 +74,10 @@ fun AppHost(
         )
 
         "home" -> HomeScreen(
-            scanRepository = scanRepository,
-            onViewHistory = { currentScreen = "history" },
-            onLogout = {
+            scanRepository  = scanRepository,
+            onViewHistory   = { currentScreen = "history" },
+            onViewProfile   = { currentScreen = "profile" },
+            onLogout        = {
                 userRepository.logout()
                 currentScreen = "login"
             }
@@ -85,7 +85,16 @@ fun AppHost(
 
         "history" -> HistoryScreen(
             scanRepository = scanRepository,
-            onBack = { currentScreen = "home" }
+            onBack         = { currentScreen = "home" }
+        )
+
+        "profile" -> ProfileScreen(
+            scanRepository = scanRepository,
+            onBack         = { currentScreen = "home" },
+            onLogout       = {
+                userRepository.logout()
+                currentScreen = "login"
+            }
         )
     }
 }

@@ -5,7 +5,7 @@ import retrofit2.converter.gson.GsonConverterFactory
 
 object RetrofitInstance {
 
-    private const val BASE_URL = "https://api.thehive.ai/api/v2/"
+    private const val BASE_URL = "https://api.thehive.ai/api/v3/"
 
     val api: ApiService by lazy {
         Retrofit.Builder()
