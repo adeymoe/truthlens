@@ -1,13 +1,15 @@
 package uk.ac.tees.mad.e4615842.ui.history
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -22,120 +24,96 @@ import coil.compose.rememberAsyncImagePainter
 import kotlinx.coroutines.launch
 import uk.ac.tees.mad.e4615842.data.ScanEntity
 import uk.ac.tees.mad.e4615842.data.ScanRepository
+import uk.ac.tees.mad.e4615842.ui.theme.*
 import java.text.SimpleDateFormat
 import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HistoryScreen(
-    scanRepository: ScanRepository,
-    onBack: () -> Unit
-) {
-    val scans by scanRepository.allScans.collectAsState(initial = emptyList())
-    val scope = rememberCoroutineScope()
+fun HistoryScreen(scanRepository: ScanRepository, onBack: () -> Unit) {
+    val scans  by scanRepository.allScans.collectAsState(initial = emptyList())
+    val scope  = rememberCoroutineScope()
     var showClearDialog by remember { mutableStateOf(false) }
 
     Scaffold(
+        containerColor = DeepBackground,
         topBar = {
             TopAppBar(
                 title = {
                     Column {
-                        Text("Scan History", fontWeight = FontWeight.Bold)
-                        if (scans.isNotEmpty()) {
-                            Text(
-                                text = "${scans.size} scan${if (scans.size == 1) "" else "s"}",
-                                fontSize = 12.sp,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                            )
-                        }
+                        Text("Scan History", fontWeight = FontWeight.Bold,
+                            color = TextPrimary, fontSize = 18.sp)
+                        if (scans.isNotEmpty())
+                            Text("${scans.size} scan${if (scans.size == 1) "" else "s"}",
+                                fontSize = 11.sp, color = TextSecondary)
                     }
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.Default.ArrowBack, null, tint = TextPrimary)
                     }
                 },
                 actions = {
-                    if (scans.isNotEmpty()) {
+                    if (scans.isNotEmpty())
                         IconButton(onClick = { showClearDialog = true }) {
-                            Icon(
-                                Icons.Default.Delete,
-                                contentDescription = "Clear All",
-                                tint = MaterialTheme.colorScheme.error
-                            )
+                            Icon(Icons.Default.DeleteSweep, null, tint = AiRed)
                         }
-                    }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = SurfaceDark,
+                    titleContentColor = TextPrimary
+                )
             )
         }
     ) { padding ->
-
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-        ) {
-            if (scans.isEmpty()) {
-                // Empty state
-                Column(
-                    modifier = Modifier
-                        .align(Alignment.Center)
-                        .padding(32.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text("🗂️", fontSize = 56.sp)
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        text = "No scans yet",
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color.Gray
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(
-                        text = "Images you analyse will appear here",
-                        fontSize = 14.sp,
-                        color = Color.LightGray
-                    )
+        if (scans.isEmpty()) {
+            Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Box(
+                        modifier = Modifier.size(80.dp)
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(SurfaceElevated)
+                            .border(1.dp, BorderSubtle, RoundedCornerShape(16.dp)),
+                        contentAlignment = Alignment.Center
+                    ) { Text("🗂️", fontSize = 36.sp) }
+                    Spacer(Modifier.height(16.dp))
+                    Text("No scans yet", fontSize = 18.sp,
+                        fontWeight = FontWeight.SemiBold, color = TextSecondary)
+                    Spacer(Modifier.height(6.dp))
+                    Text("Images you analyse will appear here",
+                        fontSize = 13.sp, color = TextMuted)
                 }
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    items(scans, key = { it.id }) { scan ->
-                        HistoryCard(
-                            scan = scan,
-                            onDelete = {
-                                scope.launch { scanRepository.deleteScan(scan) }
-                            }
-                        )
-                    }
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize().padding(padding),
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                items(scans, key = { it.id }) { scan ->
+                    HistoryCard(scan = scan,
+                        onDelete = { scope.launch { scanRepository.deleteScan(scan) } })
                 }
             }
         }
     }
 
-    // Confirm clear all dialog
     if (showClearDialog) {
         AlertDialog(
             onDismissRequest = { showClearDialog = false },
-            title = { Text("Clear All History") },
-            text = { Text("This will permanently delete all scan records. This action cannot be undone.") },
+            containerColor = CardSurface,
+            title = { Text("Clear All History", color = TextPrimary) },
+            text = { Text("This will permanently delete all scan records.",
+                color = TextSecondary) },
             confirmButton = {
-                TextButton(
-                    onClick = {
-                        scope.launch { scanRepository.deleteAllScans() }
-                        showClearDialog = false
-                    }
-                ) {
-                    Text("Clear All", color = MaterialTheme.colorScheme.error)
-                }
+                TextButton(onClick = {
+                    scope.launch { scanRepository.deleteAllScans() }
+                    showClearDialog = false
+                }) { Text("Clear All", color = AiRed, fontWeight = FontWeight.Bold) }
             },
             dismissButton = {
                 TextButton(onClick = { showClearDialog = false }) {
-                    Text("Cancel")
+                    Text("Cancel", color = TextSecondary)
                 }
             }
         )
@@ -143,70 +121,67 @@ fun HistoryScreen(
 }
 
 @Composable
-fun HistoryCard(
-    scan: ScanEntity,
-    onDelete: () -> Unit
-) {
-    val cardColor  = if (scan.isAi) Color(0xFFFFEBEE) else Color(0xFFE8F5E9)
-    val textColor  = if (scan.isAi) Color(0xFFB71C1C) else Color(0xFF1B5E20)
-    val borderColor = if (scan.isAi) Color(0xFFEF9A9A) else Color(0xFFA5D6A7)
+fun HistoryCard(scan: ScanEntity, onDelete: () -> Unit) {
+    val isAi        = scan.isAi
+    val accentColor = if (isAi) AiRed else RealGreen
+    val bgColor     = if (isAi) AiRedBg else RealGreenBg
+    val borderColor = if (isAi) AiRedBorder else RealGreenBorder
+    val dateStr     = SimpleDateFormat("dd MMM yyyy  •  HH:mm",
+        Locale.getDefault()).format(Date(scan.timestamp))
 
-    val dateFormat = SimpleDateFormat("dd MMM yyyy, HH:mm", Locale.getDefault())
-    val dateString = dateFormat.format(Date(scan.timestamp))
-
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = cardColor),
-        border = androidx.compose.foundation.BorderStroke(1.dp, borderColor)
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(bgColor)
+            .border(1.dp, borderColor, RoundedCornerShape(14.dp))
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
+            modifier = Modifier.padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Thumbnail — gracefully handles missing/expired URIs
-            Image(
-                painter = rememberAsyncImagePainter(scan.imageUri),
-                contentDescription = "Scanned image",
+            // Thumbnail
+            Box(
                 modifier = Modifier
-                    .size(64.dp)
-                    .clip(RoundedCornerShape(8.dp)),
-                contentScale = ContentScale.Crop
-            )
-
-            Spacer(modifier = Modifier.width(12.dp))
-
-            // Result info
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = scan.label,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 15.sp,
-                    color = textColor
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = "Confidence: ${scan.confidence}%",
-                    fontSize = 13.sp,
-                    color = textColor.copy(alpha = 0.85f)
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = dateString,
-                    fontSize = 12.sp,
-                    color = Color.Gray
+                    .size(60.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(SurfaceElevated)
+                    .border(1.dp, borderColor, RoundedCornerShape(10.dp))
+            ) {
+                Image(
+                    painter = rememberAsyncImagePainter(scan.imageUri),
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
                 )
             }
 
-            // Delete individual scan
-            IconButton(onClick = onDelete) {
-                Icon(
-                    imageVector = Icons.Default.Delete,
-                    contentDescription = "Delete scan",
-                    tint = Color.Gray
-                )
+            Spacer(Modifier.width(12.dp))
+
+            Column(Modifier.weight(1f)) {
+                // Badge
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(accentColor.copy(0.15f))
+                        .border(1.dp, accentColor.copy(0.25f), RoundedCornerShape(4.dp))
+                        .padding(horizontal = 8.dp, vertical = 2.dp)
+                ) {
+                    Text(
+                        if (isAi) "⚠  AI GENERATED" else "✓  LIKELY REAL",
+                        fontSize = 10.sp, fontWeight = FontWeight.Bold,
+                        color = accentColor, letterSpacing = 0.5.sp
+                    )
+                }
+                Spacer(Modifier.height(5.dp))
+                Text("${scan.confidence}% confidence", fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium, color = TextPrimary)
+                Spacer(Modifier.height(3.dp))
+                Text(dateStr, fontSize = 11.sp, color = TextMuted)
+            }
+
+            IconButton(onClick = onDelete, modifier = Modifier.size(36.dp)) {
+                Text("×", fontSize = 18.sp, color = TextMuted)
             }
         }
     }

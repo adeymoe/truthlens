@@ -1,70 +1,50 @@
 package uk.ac.tees.mad.e4615842.ui.theme
 
-import android.app.Activity
-import android.os.Build
-import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
-import androidx.compose.material3.lightColorScheme
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.SideEffect
-import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalView
-import androidx.core.view.WindowCompat
+import androidx.compose.ui.graphics.Color
+
+// ── TruthLens Design Tokens ───────────────────────────────────────────────────
+val TealPrimary       = Color(0xFF00D4AA)
+val TealVariant       = Color(0xFF00A884)
+val DeepBackground    = Color(0xFF0D1117)
+val SurfaceDark       = Color(0xFF161B22)
+val SurfaceElevated   = Color(0xFF1E2530)
+val CardSurface       = Color(0xFF1A2332)
+val BorderSubtle      = Color(0xFF2A3548)
+val TextPrimary       = Color(0xFFEAEEF4)
+val TextSecondary     = Color(0xFF8896A7)
+val TextMuted         = Color(0xFF4A5568)
+val AiRed             = Color(0xFFFF4757)
+val AiRedBg           = Color(0xFF1F0A0D)
+val AiRedBorder       = Color(0xFF4A1520)
+val RealGreen         = Color(0xFF2ED573)
+val RealGreenBg       = Color(0xFF061510)
+val RealGreenBorder   = Color(0xFF0D3320)
+val WarningAmber      = Color(0xFFFFB347)
+val WarningBg         = Color(0xFF1A1200)
 
 private val DarkColorScheme = darkColorScheme(
-    primary = Purple80,
-    secondary = PurpleGrey80,
-    tertiary = Pink80
-)
-
-private val LightColorScheme = lightColorScheme(
-    primary = Purple40,
-    secondary = PurpleGrey40,
-    tertiary = Pink40
-
-    /* Other default colors to override
-    background = Color(0xFFFFFBFE),
-    surface = Color(0xFFFFFBFE),
-    onPrimary = Color.White,
-    onSecondary = Color.White,
-    onTertiary = Color.White,
-    onBackground = Color(0xFF1C1B1F),
-    onSurface = Color(0xFF1C1B1F),
-    */
+    primary          = TealPrimary,
+    onPrimary        = Color(0xFF001A14),
+    primaryContainer = Color(0xFF003D2E),
+    secondary        = Color(0xFF4A9EFF),
+    background       = DeepBackground,
+    surface          = SurfaceDark,
+    surfaceVariant   = SurfaceElevated,
+    onBackground     = TextPrimary,
+    onSurface        = TextPrimary,
+    onSurfaceVariant = TextSecondary,
+    outline          = BorderSubtle,
+    error            = AiRed,
+    onError          = Color.White
 )
 
 @Composable
-fun TruthLensTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color is available on Android 12+
-    dynamicColor: Boolean = true,
-    content: @Composable () -> Unit
-) {
-    val colorScheme = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        }
-
-        darkTheme -> DarkColorScheme
-        else -> LightColorScheme
-    }
-    val view = LocalView.current
-    if (!view.isInEditMode) {
-        SideEffect {
-            val window = (view.context as Activity).window
-            window.statusBarColor = colorScheme.primary.toArgb()
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = darkTheme
-        }
-    }
-
+fun TruthLensTheme(content: @Composable () -> Unit) {
     MaterialTheme(
-        colorScheme = colorScheme,
-        typography = Typography,
-        content = content
+        colorScheme = DarkColorScheme,
+        typography  = Typography(),
+        content     = content
     )
 }

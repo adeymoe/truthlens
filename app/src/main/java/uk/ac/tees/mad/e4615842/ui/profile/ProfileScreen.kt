@@ -1,6 +1,7 @@
 package uk.ac.tees.mad.e4615842.ui.profile
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -13,6 +14,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -21,6 +23,9 @@ import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import uk.ac.tees.mad.e4615842.data.ScanRepository
+import uk.ac.tees.mad.e4615842.ui.theme.*
+import java.text.SimpleDateFormat
+import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -29,21 +34,17 @@ fun ProfileScreen(
     onBack: () -> Unit,
     onLogout: () -> Unit
 ) {
-    val scope = rememberCoroutineScope()
-
-    // ── Firebase user info ────────────────────────────────────────
+    val scope       = rememberCoroutineScope()
     val user        = FirebaseAuth.getInstance().currentUser
     val email       = user?.email ?: "Unknown"
     val userId      = user?.uid?.take(8)?.uppercase() ?: "N/A"
     val createdDate = user?.metadata?.creationTimestamp?.let {
-        java.text.SimpleDateFormat("dd MMM yyyy", java.util.Locale.getDefault())
-            .format(java.util.Date(it))
+        SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date(it))
     } ?: "Unknown"
 
-    // ── Scan stats from Room DB ───────────────────────────────────
-    var totalScans  by remember { mutableStateOf(0) }
-    var aiCount     by remember { mutableStateOf(0) }
-    var realCount   by remember { mutableStateOf(0) }
+    var totalScans by remember { mutableStateOf(0) }
+    var aiCount    by remember { mutableStateOf(0) }
+    var realCount  by remember { mutableStateOf(0) }
 
     LaunchedEffect(Unit) {
         scope.launch {
@@ -54,22 +55,23 @@ fun ProfileScreen(
         }
     }
 
-    // ── Avatar initials from email ────────────────────────────────
     val initials = email.take(2).uppercase()
 
     Scaffold(
+        containerColor = DeepBackground,
         topBar = {
             TopAppBar(
-                title = { Text("Profile", fontWeight = FontWeight.Bold) },
+                title = { Text("Profile", fontWeight = FontWeight.Bold,
+                    color = TextPrimary, fontSize = 18.sp) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.Default.ArrowBack, null, tint = TextPrimary)
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = SurfaceDark)
             )
         }
     ) { padding ->
-
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -82,144 +84,100 @@ fun ProfileScreen(
             Spacer(Modifier.height(16.dp))
 
             // ── Avatar ────────────────────────────────────────────
-            Box(
-                modifier = Modifier
-                    .size(88.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primary),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = initials,
-                    fontSize = 30.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
+            Box(contentAlignment = Alignment.Center) {
+                // Glow ring
+                Box(
+                    modifier = Modifier
+                        .size(100.dp)
+                        .background(
+                            Brush.radialGradient(
+                                listOf(TealPrimary.copy(0.3f), Color.Transparent)
+                            ), CircleShape
+                        )
+                )
+                Box(
+                    modifier = Modifier
+                        .size(84.dp)
+                        .clip(CircleShape)
+                        .background(
+                            Brush.linearGradient(
+                                listOf(TealVariant, TealPrimary)
+                            )
+                        )
+                        .border(2.dp, TealPrimary.copy(0.5f), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(initials, fontSize = 28.sp,
+                        fontWeight = FontWeight.Bold, color = Color(0xFF001A14))
+                }
+            }
+
+            Spacer(Modifier.height(14.dp))
+
+            Text(email, fontSize = 16.sp,
+                fontWeight = FontWeight.SemiBold, color = TextPrimary)
+            Spacer(Modifier.height(4.dp))
+            Text("MEMBER SINCE $createdDate", fontSize = 9.sp,
+                color = TealPrimary, letterSpacing = 2.sp)
+
+            Spacer(Modifier.height(28.dp))
+
+            // ── Stats ─────────────────────────────────────────────
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                StatTile(Modifier.weight(1f), "🔍", totalScans.toString(), "TOTAL")
+                StatTile(Modifier.weight(1f), "⚠", aiCount.toString(), "AI FOUND", AiRed)
+                StatTile(Modifier.weight(1f), "✓", realCount.toString(), "REAL", RealGreen)
+            }
+
+            Spacer(Modifier.height(20.dp))
+
+            // ── Account card ──────────────────────────────────────
+            ProfileCard(title = "ACCOUNT") {
+                ProfileRow("Email", email)
+                Divider(color = BorderSubtle, modifier = Modifier.padding(vertical = 10.dp))
+                ProfileRow("User ID", "#$userId")
+                Divider(color = BorderSubtle, modifier = Modifier.padding(vertical = 10.dp))
+                ProfileRow("Member Since", createdDate)
+                Divider(color = BorderSubtle, modifier = Modifier.padding(vertical = 10.dp))
+                ProfileRow(
+                    "Detection Rate",
+                    if (totalScans > 0)
+                        "${((aiCount.toFloat() / totalScans) * 100).toInt()}% AI detected"
+                    else "No scans yet",
+                    if (totalScans > 0 && aiCount > realCount) AiRed else RealGreen
                 )
             }
 
             Spacer(Modifier.height(12.dp))
 
-            Text(
-                text = email,
-                fontSize = 17.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onBackground
-            )
-
-            Text(
-                text = "Member since $createdDate",
-                fontSize = 13.sp,
-                color = Color.Gray
-            )
+            // ── App card ──────────────────────────────────────────
+            ProfileCard(title = "ABOUT TRUTHLENS") {
+                ProfileRow("Version", "1.0.0")
+                Divider(color = BorderSubtle, modifier = Modifier.padding(vertical = 10.dp))
+                ProfileRow("Detection Engine", "Hive AI v3")
+                Divider(color = BorderSubtle, modifier = Modifier.padding(vertical = 10.dp))
+                ProfileRow("Authentication", "Firebase Auth")
+                Divider(color = BorderSubtle, modifier = Modifier.padding(vertical = 10.dp))
+                ProfileRow("Local Storage", "Room Database")
+            }
 
             Spacer(Modifier.height(28.dp))
 
-            // ── Stats row ─────────────────────────────────────────
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                StatCard(
-                    modifier = Modifier.weight(1f),
-                    icon = "🔍",
-                    value = totalScans.toString(),
-                    label = "Total Scans"
-                )
-                StatCard(
-                    modifier = Modifier.weight(1f),
-                    icon = "⚠️",
-                    value = aiCount.toString(),
-                    label = "AI Detected",
-                    valueColor = Color(0xFFB71C1C)
-                )
-                StatCard(
-                    modifier = Modifier.weight(1f),
-                    icon = "✅",
-                    value = realCount.toString(),
-                    label = "Real Images",
-                    valueColor = Color(0xFF1B5E20)
-                )
-            }
-
-            Spacer(Modifier.height(24.dp))
-
-            // ── Account details card ──────────────────────────────
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                )
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text(
-                        text = "Account Details",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color.Gray,
-                        modifier = Modifier.padding(bottom = 12.dp)
-                    )
-
-                    ProfileDetailRow(label = "Email", value = email)
-                    Divider(modifier = Modifier.padding(vertical = 10.dp), color = Color.LightGray.copy(alpha = 0.5f))
-                    ProfileDetailRow(label = "User ID", value = "#$userId")
-                    Divider(modifier = Modifier.padding(vertical = 10.dp), color = Color.LightGray.copy(alpha = 0.5f))
-                    ProfileDetailRow(label = "Account Created", value = createdDate)
-                    Divider(modifier = Modifier.padding(vertical = 10.dp), color = Color.LightGray.copy(alpha = 0.5f))
-                    ProfileDetailRow(
-                        label = "Detection Rate",
-                        value = if (totalScans > 0) "${((aiCount.toFloat() / totalScans) * 100).toInt()}% AI" else "No scans yet"
-                    )
-                }
-            }
-
-            Spacer(Modifier.height(24.dp))
-
-            // ── App info card ─────────────────────────────────────
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                )
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text(
-                        text = "About TruthLens",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color.Gray,
-                        modifier = Modifier.padding(bottom = 12.dp)
-                    )
-                    ProfileDetailRow(label = "Version", value = "1.0.0")
-                    Divider(modifier = Modifier.padding(vertical = 10.dp), color = Color.LightGray.copy(alpha = 0.5f))
-                    ProfileDetailRow(label = "Detection Engine", value = "Hive AI v3")
-                    Divider(modifier = Modifier.padding(vertical = 10.dp), color = Color.LightGray.copy(alpha = 0.5f))
-                    ProfileDetailRow(label = "Authentication", value = "Firebase Auth")
-                    Divider(modifier = Modifier.padding(vertical = 10.dp), color = Color.LightGray.copy(alpha = 0.5f))
-                    ProfileDetailRow(label = "Local Storage", value = "Room Database")
-                }
-            }
-
-            Spacer(Modifier.height(32.dp))
-
-            // ── Logout button ─────────────────────────────────────
-            Button(
-                onClick = onLogout,
+            // ── Logout ────────────────────────────────────────────
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(52.dp),
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.error
-                )
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(AiRedBg)
+                    .border(1.dp, AiRedBorder, RoundedCornerShape(12.dp))
             ) {
-                Text(
-                    text = "Logout",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = Color.White
-                )
+                TextButton(
+                    onClick = onLogout,
+                    modifier = Modifier.fillMaxWidth().height(52.dp)
+                ) {
+                    Text("Sign Out", color = AiRed,
+                        fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                }
             }
 
             Spacer(Modifier.height(24.dp))
@@ -227,64 +185,51 @@ fun ProfileScreen(
     }
 }
 
-// ── Stat card composable ──────────────────────────────────────────────────────
 @Composable
-fun StatCard(
-    modifier: Modifier = Modifier,
-    icon: String,
-    value: String,
-    label: String,
-    valueColor: Color = MaterialTheme.colorScheme.onBackground
-) {
-    Card(
-        modifier = modifier,
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-        )
+fun StatTile(modifier: Modifier, icon: String, value: String, label: String,
+             valueColor: Color = TextPrimary) {
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(12.dp))
+            .background(CardSurface)
+            .border(1.dp, BorderSubtle, RoundedCornerShape(12.dp))
+            .padding(vertical = 16.dp),
+        contentAlignment = Alignment.Center
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(icon, fontSize = 22.sp)
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(icon, fontSize = 20.sp)
             Spacer(Modifier.height(6.dp))
-            Text(
-                text = value,
-                fontSize = 22.sp,
-                fontWeight = FontWeight.Bold,
-                color = valueColor
-            )
-            Text(
-                text = label,
-                fontSize = 11.sp,
-                color = Color.Gray,
-                maxLines = 1
-            )
+            Text(value, fontSize = 24.sp,
+                fontWeight = FontWeight.Bold, color = valueColor)
+            Text(label, fontSize = 9.sp,
+                color = TextMuted, letterSpacing = 1.sp)
         }
     }
 }
 
-// ── Profile detail row composable ────────────────────────────────────────────
 @Composable
-fun ProfileDetailRow(label: String, value: String) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
+fun ProfileCard(title: String, content: @Composable ColumnScope.() -> Unit) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(CardSurface)
+            .border(1.dp, BorderSubtle, RoundedCornerShape(16.dp))
+            .padding(16.dp)
     ) {
-        Text(
-            text = label,
-            fontSize = 14.sp,
-            color = Color.Gray
-        )
-        Text(
-            text = value,
-            fontSize = 14.sp,
-            fontWeight = FontWeight.Medium,
-            color = MaterialTheme.colorScheme.onBackground
-        )
+        Column {
+            Text(title, fontSize = 10.sp, color = TealPrimary,
+                letterSpacing = 2.sp, fontWeight = FontWeight.Medium,
+                modifier = Modifier.padding(bottom = 14.dp))
+            content()
+        }
+    }
+}
+
+@Composable
+fun ProfileRow(label: String, value: String, valueColor: Color = TextPrimary) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        Text(label, fontSize = 13.sp, color = TextSecondary)
+        Text(value, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = valueColor)
     }
 }
